@@ -1,0 +1,148 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+#game { font-family: var(--font-sans); padding: 1.5rem 1rem; max-width: 380px; }
+h2 { font-size: 20px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 4px; }
+.sub { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 1.5rem; }
+.difficulty-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 1.5rem; }
+.diff-btn { padding: 12px 8px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-primary); font-size: 14px; cursor: pointer; text-align: center; }
+.diff-btn:hover { background: var(--color-background-secondary); }
+.diff-btn.selected { border: 1.5px solid #7F77DD; background: #EEEDFE; color: #3C3489; font-weight: 500; }
+.input-row { display: flex; gap: 8px; margin-bottom: 1rem; }
+#guess-input { flex: 1; padding: 10px 12px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-primary); font-size: 16px; outline: none; }
+#guess-input:focus { border-color: #7F77DD; box-shadow: 0 0 0 2px rgba(127,119,221,0.15); }
+#guess-btn { padding: 10px 18px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-primary); font-size: 15px; font-weight: 500; cursor: pointer; }
+#guess-btn:hover { background: var(--color-background-secondary); }
+#guess-btn:active { transform: scale(0.97); }
+.feedback { min-height: 52px; display: flex; align-items: center; justify-content: center; border-radius: var(--border-radius-md); margin-bottom: 1rem; padding: 12px; font-size: 15px; font-weight: 500; text-align: center; }
+.fb-higher { background: #E1F5EE; color: #085041; }
+.fb-lower { background: #FAECE7; color: #4A1B0C; }
+.fb-win { background: #EAF3DE; color: #173404; }
+.fb-start { background: var(--color-background-secondary); color: var(--color-text-secondary); font-weight: 400; font-size: 14px; }
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 1.5rem; }
+.stat { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 12px; }
+.stat-label { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 2px; }
+.stat-val { font-size: 22px; font-weight: 500; color: var(--color-text-primary); }
+.history { margin-bottom: 1rem; }
+.history-label { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 6px; }
+.history-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { font-size: 12px; padding: 3px 8px; border-radius: 20px; border: 0.5px solid var(--color-border-tertiary); color: var(--color-text-secondary); }
+.pill.high { border-color: #F0997B; color: #993C1D; background: #FAECE7; }
+.pill.low { border-color: #5DCAA5; color: #085041; background: #E1F5EE; }
+#new-btn { width: 100%; padding: 11px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-primary); font-size: 14px; cursor: pointer; margin-bottom: 1.5rem; }
+#new-btn:hover { background: var(--color-background-secondary); }
+.credit { text-align: center; font-size: 12px; color: var(--color-text-secondary); padding-top: 0.5rem; border-top: 0.5px solid var(--color-border-tertiary); }
+.hidden { display: none !important; }
+</style>
+
+<div id="game">
+  <h2>Guess the number</h2>
+  <p class="sub">Pick a difficulty, then guess the hidden number.</p>
+
+  <div class="difficulty-grid">
+    <button class="diff-btn" data-max="10" onclick="selectDiff(this)">Very easy</button>
+    <button class="diff-btn" data-max="50" onclick="selectDiff(this)">Easy</button>
+    <button class="diff-btn selected" data-max="100" onclick="selectDiff(this)">Normal</button>
+    <button class="diff-btn" data-max="500" onclick="selectDiff(this)">Hard</button>
+    <button class="diff-btn" data-max="1000" onclick="selectDiff(this)">Very hard</button>
+    <button class="diff-btn" data-max="10000" onclick="selectDiff(this)">Extreme</button>
+  </div>
+
+  <div class="input-row">
+    <input id="guess-input" type="number" placeholder="Enter your guess…" min="1" />
+    <button id="guess-btn" onclick="makeGuess()">Guess</button>
+  </div>
+
+  <div class="feedback fb-start" id="feedback">Choose a difficulty and start guessing!</div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Guesses</div><div class="stat-val" id="guess-count">0</div></div>
+    <div class="stat"><div class="stat-label">Best game</div><div class="stat-val" id="best">–</div></div>
+  </div>
+
+  <div class="history hidden" id="history-wrap">
+    <div class="history-label">Your guesses</div>
+    <div class="history-pills" id="history-pills"></div>
+  </div>
+
+  <button id="new-btn" onclick="newGame()">New game</button>
+
+  <div class="credit">Made by Satyam</div>
+</div>
+
+<script>
+let secret, max, guesses, history, won, best;
+
+function rand(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+
+function init() { max = 100; guesses = 0; history = []; won = false; best = null; secret = rand(1, max); }
+
+function selectDiff(btn) {
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  max = parseInt(btn.dataset.max);
+  newGame();
+}
+
+function newGame() {
+  guesses = 0; history = []; won = false;
+  secret = rand(1, max);
+  document.getElementById('guess-count').textContent = '0';
+  document.getElementById('feedback').className = 'feedback fb-start';
+  document.getElementById('feedback').textContent = 'Choose a difficulty and start guessing!';
+  document.getElementById('guess-input').value = '';
+  document.getElementById('guess-input').disabled = false;
+  document.getElementById('guess-btn').disabled = false;
+  document.getElementById('history-wrap').classList.add('hidden');
+  document.getElementById('history-pills').innerHTML = '';
+}
+
+function makeGuess() {
+  if (won) return;
+  const input = document.getElementById('guess-input');
+  const val = parseInt(input.value);
+  if (!val || val < 1 || val > max) {
+    document.getElementById('feedback').className = 'feedback fb-start';
+    document.getElementById('feedback').textContent = 'Please enter a number between 1 and ' + max.toLocaleString() + '.';
+    return;
+  }
+  guesses++;
+  document.getElementById('guess-count').textContent = guesses;
+  history.push({ val, dir: val > secret ? 'high' : val < secret ? 'low' : 'win' });
+  renderHistory();
+
+  const fb = document.getElementById('feedback');
+  if (val === secret) {
+    won = true;
+    fb.className = 'feedback fb-win';
+    fb.textContent = 'You got it! The number was ' + secret + '. Guesses: ' + guesses + '.';
+    if (best === null || guesses < best) {
+      best = guesses;
+      document.getElementById('best').textContent = best;
+    }
+    document.getElementById('guess-input').disabled = true;
+    document.getElementById('guess-btn').disabled = true;
+  } else if (val > secret) {
+    fb.className = 'feedback fb-lower';
+    fb.textContent = 'Too high! Go lower.';
+  } else {
+    fb.className = 'feedback fb-higher';
+    fb.textContent = 'Too low! Go higher.';
+  }
+  input.value = '';
+  input.focus();
+}
+
+function renderHistory() {
+  const wrap = document.getElementById('history-wrap');
+  const pills = document.getElementById('history-pills');
+  wrap.classList.remove('hidden');
+  pills.innerHTML = history.map(h =>
+    `<span class="pill ${h.dir === 'high' ? 'high' : h.dir === 'low' ? 'low' : ''}">${h.val}</span>`
+  ).join('');
+}
+
+document.getElementById('guess-input').addEventListener('keydown', e => { if (e.key === 'Enter') makeGuess(); });
+
+init();
+</script>
